@@ -1,146 +1,151 @@
-CREATE DATABASE IF NOT EXISTS StudentDB;
-USE StudentDB;
+-- Tạo cơ sở dữ liệu và sử dụng
+CREATE DATABASE SocialNetworkDB;
+USE SocialNetworkDB;
 
--- 1. Bảng Khoa
-CREATE TABLE Department (
-    DeptID VARCHAR(5) PRIMARY KEY,
-    DeptName VARCHAR(50) NOT NULL
+-- Bảng Users
+CREATE TABLE Users (
+    user_id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(50) NOT NULL UNIQUE,
+    password VARCHAR(100) NOT NULL,
+    email VARCHAR(100) NOT NULL UNIQUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- 2. Bảng SinhVien
-CREATE TABLE Student (
-    StudentID VARCHAR(6) PRIMARY KEY,
-    FullName VARCHAR(50),
-    Gender VARCHAR(10),
-    BirthDate DATE,
-    DeptID VARCHAR(5),
-    FOREIGN KEY (DeptID) REFERENCES Department(DeptID)
+-- Bảng Posts
+CREATE TABLE Posts (
+    post_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    content TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    is_deleted BOOLEAN DEFAULT FALSE,
+    FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE
 );
 
--- 3. Bảng MonHoc
-CREATE TABLE Course (
-    CourseID VARCHAR(6) PRIMARY KEY,
-    CourseName VARCHAR(50),
-    Credits INT
+-- Bảng Likes
+CREATE TABLE Likes (
+    like_id INT AUTO_INCREMENT PRIMARY KEY,
+    post_id INT NOT NULL,
+    user_id INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (post_id) REFERENCES Posts(post_id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE
 );
 
--- 4. Bảng DangKy
-CREATE TABLE Enrollment (
-    StudentID VARCHAR(6),
-    CourseID VARCHAR(6),
-    Score DECIMAL(4,2), 
-    PRIMARY KEY (StudentID, CourseID),
-    FOREIGN KEY (StudentID) REFERENCES Student(StudentID),
-    FOREIGN KEY (CourseID) REFERENCES Course(CourseID)
+-- Bảng Comments
+CREATE TABLE Comments (
+    comment_id INT AUTO_INCREMENT PRIMARY KEY,
+    post_id INT NOT NULL,
+    user_id INT NOT NULL,
+    content TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (post_id) REFERENCES Posts(post_id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE
 );
 
--- Chèn dữ liệu mẫu
-INSERT INTO Department VALUES
-('IT','Information Technology'),
-('BA','Business Administration'),
-('ACC','Accounting');
+-- Bảng Friends
+CREATE TABLE Friends (
+    user_id INT NOT NULL,
+    friend_id INT NOT NULL,
+    status ENUM('pending','accepted','blocked') DEFAULT 'pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, friend_id),
+    FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (friend_id) REFERENCES Users(user_id) ON DELETE CASCADE
+);
 
-INSERT INTO Student VALUES
-('S00001','Nguyen An','Male','2003-05-10','IT'),
-('S00002','Tran Binh','Male','2003-06-15','IT'),
-('S00003','Le Hoa','Female','2003-08-20','BA'),
-('S00004','Pham Minh','Male','2002-12-12','ACC'),
-('S00005','Vo Lan','Female','2003-03-01','IT'),
-('S00006','Do Hung','Male','2002-11-11','BA'),
-('S00007','Nguyen Mai','Female','2003-07-07','ACC'),
-('S00008','Tran Phuc','Male','2003-09-09','IT');
+-- Index cho Posts theo thời gian
+CREATE INDEX idx_posts_created_at ON Posts(created_at);
 
-INSERT INTO Course (CourseID, CourseName, Credits) VALUES ('CS101', 'C Programming', 3), 
-('CS102', 'Database Management', 4),
- ('BA201', 'Principles of Marketing', 3), 
-('ACC301', 'Financial Accounting', 3),
- ('CS103', 'Java Programming', 4); 
+-- Dữ liệu mẫu
+INSERT INTO Users (username, password, email) VALUES
+('alice', 'pass123', 'alice@example.com'),
+('bob', 'pass456', 'bob@example.com'),
+('charlie', 'pass789', 'charlie@example.com');
 
-INSERT INTO Enrollment (StudentID, CourseID, Score) VALUES
--- Sinh viên IT học lập trình và cơ sở dữ liệu
-('S00001', 'CS101', 8.5),
-('S00001', 'CS102', 7.0),
-('S00002', 'CS101', 9.0),
-('S00002', 'CS103', 8.0),
-('S00005', 'CS102', 6.5),
-('S00008', 'CS101', 7.5),
+INSERT INTO Posts (user_id, content) VALUES
+(1, 'Hello world! Đây là bài viết đầu tiên của Alice.'),
+(2, 'Bob vừa tham gia mạng xã hội này.'),
+(3, 'Charlie chia sẻ một bài viết thú vị.');
 
--- Sinh viên BA học Marketing
-('S00003', 'BA201', 8.0),
-('S00006', 'BA201', 7.5),
+INSERT INTO Likes (post_id, user_id) VALUES
+(1, 2),
+(1, 3),
+(2, 1);
 
--- Sinh viên ACC học Kế toán
-('S00004', 'ACC301', 9.5),
-('S00007', 'ACC301', 8.0);
+INSERT INTO Comments (post_id, user_id, content) VALUES
+(1, 2, 'Chào Alice!'),
+(1, 3, 'Bài viết hay đó.'),
+(2, 1, 'Welcome Bob!');
 
--- Câu 1:
-CREATE OR REPLACE VIEW ViewStudentBasic AS
-SELECT s.StudentID, s.FullName, d.DeptName
-FROM Student s, Department d
-WHERE s.DeptID = d.DeptID ;
-SELECT * FROM ViewStudentBasic;
+INSERT INTO Friends (user_id, friend_id, status) VALUES
+(1, 2, 'accepted'),
+(1, 3, 'accepted'),
+(2, 3, 'pending');
 
--- Câu 2:
-CREATE INDEX idxFullName ON Student(FullName);
+-- ============================
+-- VIEW & STORED PROCEDURE THEO ĐỀ
+-- ============================
 
--- Câu 3:
+-- Chức năng 1: Hiển thị hồ sơ người dùng an toàn
+CREATE VIEW view_user_info AS
+SELECT user_id, username, email, created_at
+FROM Users;
+
+-- Chức năng 2: Báo cáo thống kê tương tác
+CREATE VIEW view_post_statistics AS
+SELECT p.post_id, u.username, p.content, p.created_at,
+       COUNT(DISTINCT l.like_id) AS total_likes,
+       COUNT(DISTINCT c.comment_id) AS total_comments
+FROM Posts p
+JOIN Users u ON p.user_id = u.user_id
+LEFT JOIN Likes l ON p.post_id = l.post_id
+LEFT JOIN Comments c ON p.post_id = c.post_id
+WHERE p.is_deleted = FALSE
+GROUP BY p.post_id, u.username, p.content, p.created_at;
+
+-- Chức năng 3: Xử lý đăng ký tài khoản
 DELIMITER //
-CREATE PROCEDURE GetStudentsIT()
-	BEGIN
-		SELECT s.*
-        FROM Student s
-        INNER JOIN Department d
-        ON s.DeptID = d.DeptID 
-        WHERE d.DeptName = 'Information Technology';
-    END //
+CREATE PROCEDURE sp_add_user(
+    IN p_username VARCHAR(50),
+    IN p_password VARCHAR(100),
+    IN p_email VARCHAR(100)
+)
+BEGIN
+    IF EXISTS (SELECT 1 FROM Users WHERE email = p_email) THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Email đã được sử dụng';
+    ELSE
+        INSERT INTO Users(username, password, email)
+        VALUES (p_username, p_password, p_email);
+    END IF;
+END //
 DELIMITER ;
-CALL GetStudentsIT();
 
--- Câu 4:
-CREATE OR REPLACE VIEW ViewStudentCountByDept AS
-SELECT d.DeptName, COUNT(s.StudentID) AS TotalStudents
-FROM Department d, Student s
-WHERE d.DeptID = s.DeptID
-GROUP BY d.DeptName;
-SELECT * FROM ViewStudentCountByDept 
-ORDER BY TotalStudents DESC
-LIMIT 1;
-
--- Câu 5
-DROP PROCEDURE IF EXISTS GetTopScoreStudent;
+-- Chức năng 4: Đăng bài viết và lấy mã định danh
 DELIMITER //
-CREATE PROCEDURE GetTopScoreStudent(IN varCourseID VARCHAR(6))
-	BEGIN
-		SELECT s.*
-        FROM Student s, Enrollment e
-        WHERE s.StudentID = e.StudentID AND e.CourseID = varCourseID
-        ORDER BY e.Score DESC
-        LIMIT 1;
-    END //
+CREATE PROCEDURE sp_create_post(
+    IN p_user_id INT,
+    IN p_content TEXT,
+    OUT p_new_post_id INT
+)
+BEGIN
+    INSERT INTO Posts(user_id, content) VALUES (p_user_id, p_content);
+    SET p_new_post_id = LAST_INSERT_ID();
+END //
 DELIMITER ;
-CALL GetTopScoreStudent('CS102');
 
--- Câu 6
-CREATE OR REPLACE VIEW ViewITEnrollmentDB AS
-SELECT s.*, e.Score
-FROM Student s, Department d, Enrollment e
-WHERE d.DeptID = s.DeptID AND s.StudentID = e.StudentID AND d.DeptID = 'IT' AND e.CourseID = 'CS102'
-WITH CHECK OPTION;
-
-DROP PROCEDURE IF EXISTS UpdateScoreITDB;
+-- Chức năng 5: Danh sách bạn bè phân trang
 DELIMITER //
-CREATE PROCEDURE UpdateScoreITDB(IN varStudentID VARCHAR(6), INOUT inoutNewScore DECIMAL(4,2))
-	BEGIN
-		IF inoutNewScore > 10 THEN
-			SET inoutNewScore = 10;
-		END IF;
-		UPDATE ViewITEnrollmentDB
-        SET Score = inoutNewScore
-        WHERE StudentID = varStudentID;
-    END //
+CREATE PROCEDURE sp_get_friends(
+    IN p_user_id INT,
+    IN p_limit INT,
+    IN p_offset INT
+)
+BEGIN
+    SELECT u.user_id, u.username, u.email, f.created_at
+    FROM Friends f
+    JOIN Users u ON f.friend_id = u.user_id
+    WHERE f.user_id = p_user_id AND f.status = 'accepted'
+    LIMIT p_limit OFFSET p_offset;
+END //
 DELIMITER ;
-SET @inoutNewScore = 6;
-CALL UpdateScoreITDB('S00001', @inoutNewScore);
-SELECT @inoutNewScore;
-SELECT *
-FROM ViewITEnrollmentDB;
